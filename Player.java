@@ -38,7 +38,7 @@ public class Player {
         if (key.getKeyCode() == KeyEvent.VK_SPACE) {
             state = state.swap();
             if (stuck)
-                stuck = !stuck;
+                stuck = false;
         }
         if (key.getKeyCode() == KeyEvent.VK_R) {
             bound.setLocation(100, 490);
