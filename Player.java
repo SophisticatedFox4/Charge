@@ -6,6 +6,7 @@ public class Player {
     private Settings s = new Settings();
 
     private Rectangle bound;
+    private Rectangle hitbox;
     public int vX, vY;
     private boolean onGround = false;
     public State state = State.POSITIVE;
@@ -17,6 +18,7 @@ public class Player {
         vX = 0;
         vY = 0;
         bound = new Rectangle(x, y, s.pWidth, s.pHeight);
+        hitbox = new Rectangle(x - 10, y - 10, s.pWidth + 10, s.pHeight + 10);
     }
 
     public void draw(Graphics2D g) {
@@ -33,8 +35,7 @@ public class Player {
         if (key.getKeyCode() == KeyEvent.VK_RIGHT)
             right = true;
         if (key.getKeyCode() == KeyEvent.VK_UP)
-            if (!stuck)
-                up = true;
+            up = true;
         if (key.getKeyCode() == KeyEvent.VK_SPACE) {
             state = state.swap();
             if (stuck)
@@ -66,13 +67,14 @@ public class Player {
         else
             vX = 0;
 
-        if (up && onGround) {
+        if (up && onGround && !stuck) {
             vY = s.jump;
             onGround = false;
         }
         vY -= s.gravity;
 
         bound.translate(vX, -vY);
+        hitbox.translate(vX, -vY);
 
         if (bound.x < 0) {
             bound.setLocation(0, (int) bound.y);
@@ -93,17 +95,20 @@ public class Player {
     }
 
     public void checkCollision(Wall w) {
-        if (!bound.intersects(w.getBound()))
+        if (!hitbox.intersects(w.getBound()))
             return;
-        Rectangle error = bound.intersection(w.getBound());
+        Rectangle error = hitbox.intersection(w.getBound());
         if (error.width < error.height) {
             bound.translate(vX >= 0 ? -error.width : error.width, 0);
+            hitbox.translate(vX >= 0 ? -error.width : error.width, 0);
         } else {
             if (vY < 0) {
                 bound.translate(0, -error.height);
+                hitbox.translate(0, -error.height);
                 onGround = true;
             } else {
                 bound.translate(0, error.height);
+                hitbox.translate(0, error.height);
             }
             vY = 0;
         }
@@ -111,11 +116,29 @@ public class Player {
 
     public void physics(ArrayList<Wall> walls) {
         for (Wall w : walls) {
-            Rectangle r = w.getBound();
             if (w.getType().equals("neutral"))
                 continue;
+            Rectangle r = w.getBound();
+            double dx = r.getCenterX() - bound.getCenterX();
+            double dy = r.getCenterY() - bound.getCenterY();
+            double distance = Math.hypot(dx, dy);
+            double converted = distance / 100;
 
-            
+            if (distance > 100)
+                continue;
+
+            double force = s.force(converted);
+            force = Math.min(force * converted, 30);
+            if (!state.getCharge().equals(w.getType())) {
+                // attract
+                if (distance < 10) stuck = true;
+            } else {
+                // repel
+                if (onGround) continue;
+                force = -force;
+            }
+            bound.translate((int) (dx / 100 * force), (int) (dy / 100 * force));
+            hitbox.translate((int) (dx / 100 * force), (int) (dy / 100 * force));
         }
     }
 }
